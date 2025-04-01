@@ -752,12 +752,48 @@ describe('string', () => {
       });
 
       describe(`uuid`, () => {
-        it('generates a valid UUID', () => {
-          const UUID = faker.string.uuid();
+        it('generates a valid v4 UUID', () => {
           const RFC4122 =
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-          expect(UUID).toMatch(RFC4122);
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+          const UUID1 = faker.string.uuid();
+          expect(UUID1).toMatch(RFC4122);
+
+          const UUID2 = faker.string.uuid({ 'version': 'v4' });
+          expect(UUID2).toMatch(RFC4122);
         });
+
+        it('generates a valid v7 UUID', () => {
+          const RFC9562 =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+          
+          const UUID1 = faker.string.uuid({ 'version': 'v7' });
+          expect(UUID1).toMatch(RFC9562);
+
+          const RFC9562_dateSpecific =
+          /^0195f2d0-f118-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+          const UUID2 = faker.string.uuid({ 'version': 'v7', date: new Date('2025-04-01T19:25:34.360Z') });
+          expect(UUID2).toMatch(RFC9562_dateSpecific);
+        });
+
+        it.each(['1969-12-31T23:59:59.999Z', -1, new Date(-1)] as const)(
+          'should reject dates before the epoch (v7) %s', 
+          (date) => {
+            expect(() => faker.string.uuid({ 'version': 'v7', date })).toThrow(
+              new FakerError(`Unable to generate UUIDv7 string, because the input date must be after the Unix epoch: ${date.toString()}`)
+            );
+          }
+        );
+
+        it.each(['invalid', Number.NaN, new Date(Number.NaN)] as const)(
+          'should reject invalid dates %s', 
+          (date) => {
+            expect(() => faker.string.uuid({ 'version': 'v7', date })).toThrow(
+              new FakerError(`Invalid refDate date: ${date.toString()}`)
+            );
+          }
+        );
       });
 
       describe(`ulid`, () => {

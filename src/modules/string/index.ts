@@ -693,17 +693,68 @@ export class StringModule extends SimpleModuleBase {
   }
 
   /**
-   * Returns a UUID v4 ([Universally Unique Identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier)).
+   * Returns a UUID v4 or v7 ([Universally Unique Identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier)).
+   * 
+   * @param options The optional options object.
+   * @param options.version The version of UUID to generate. Supported versions: "v4" or "v7".
+   * Defaults to "v4".
+   * @param options.date 
+   * The date to use as the timestamp for the newly generated UUID. Only supported by UUIDv7.
+   * The encoded timestamp is represented by the first 48 bits of the result.
+   * This date must be on or after the Unix epoch. (1970-01-01T00:00:00Z)
+   * Defaults to `Date.now()`.
    *
    * @example
    * faker.string.uuid() // '4136cd0b-d90b-4af7-b485-5d1ded8db252'
    *
    * @since 8.0.0
    */
-  uuid(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-      .replaceAll('x', () => this.faker.number.hex({ min: 0x0, max: 0xf }))
-      .replaceAll('y', () => this.faker.number.hex({ min: 0x8, max: 0xb }));
+  uuid(
+    options: (
+      | { 
+        /** 
+         * The version to use for the generated UUID. Supported versions: "v4" or "v7".
+         * 
+         * @default "v4"
+         */
+          version?: 'v4',
+        }
+      | {
+          /** 
+           * The version to use for the generated UUID. Supported values: "v4" or "v7".
+           * 
+           * @default "v4"
+           */
+          version: 'v7',
+          /**
+           * The date to use as the timestamp for the newly generated UUIDv7.
+           * The encoded timestamp is represented by the first 48 bits of the result.
+           * This date must be on or after the Unix epoch. (1970-01-01T00:00:00Z)
+           *
+           * @default Date.now()
+           */
+          date?: string | Date | number; 
+        }
+      ) = {}
+    ): string {
+    const { version = 'v4' } = options;
+
+    if (version === 'v4') {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+        .replaceAll('x', () => this.faker.number.hex({ min: 0x0, max: 0xf }))
+        .replaceAll('y', () => this.faker.number.hex({ min: 0x8, max: 0xb }));
+    }
+
+    const { date = Date.now() } = options as { date?: string | Date | number };
+    // Only take lower 48 bits
+    let ms = +toDate(date) % 0x1000000000000;
+    if (ms < 0) {
+      throw new FakerError(`Unable to generate UUIDv7 string, because the input date must be after the Unix epoch: ${date.toString()}`);
+    }
+    const timestamp = ms.toString(16).padStart(12, '0');
+    return `${timestamp.substring(0, 8)}-${timestamp.substring(8, 12)}-7xxx-yxxx-xxxxxxxxxxxx`
+        .replaceAll('x', () => this.faker.number.hex({ min: 0x0, max: 0xf }))
+        .replaceAll('y', () => this.faker.number.hex({ min: 0x8, max: 0xb }));
   }
 
   /**
