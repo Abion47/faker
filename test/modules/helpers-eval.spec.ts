@@ -115,6 +115,41 @@ describe('fakeEval()', () => {
     ).toContain(actual);
   });
 
+  it('supports external instance member access after a function call', () => {
+    const numberToPrecisionExpected = fakeEval(
+      'number.int(100).toPrecision(2)',
+      faker
+    );
+    expect(numberToPrecisionExpected).toBeTypeOf('string');
+
+    const alphaTrimExpected = fakeEval(
+      'string.alpha(10).padStart(12, "=")',
+      faker
+    );
+    expect(alphaTrimExpected).toBeTypeOf('string');
+    expect(alphaTrimExpected).toHaveLength(12);
+    expect(alphaTrimExpected).toMatch(/^==[a-zA-Z]{10}$/);
+
+    const stringLengthActual = fakeEval('string.alpha(10).length', faker);
+    expect(stringLengthActual).toBeTypeOf('number');
+    expect(stringLengthActual).toBe(10);
+  });
+
+  it('supports external instance member access after a function reference', () => {
+    const numberToPrecisionExpected = fakeEval('number.int.toPrecision', faker);
+    expect(numberToPrecisionExpected).toBeTypeOf('string');
+    expect(numberToPrecisionExpected).toMatch(/^\d+$/);
+
+    const alphaTrimExpected = fakeEval('string.alpha.trim', faker);
+    expect(alphaTrimExpected).toBeTypeOf('string');
+
+    const isoTimestampActual = fakeEval('date.anytime.toISOString', faker);
+    expect(isoTimestampActual).toBeTypeOf('string');
+    expect(isoTimestampActual).toMatch(
+      /^([+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24:?00)([.,]\d+(?!:))?)?(\17[0-5]\d([.,]\d+)?)?([zZ]|([+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$/
+    );
+  });
+
   it('requires a dot after a function call', () => {
     expect(() => fakeEval('airline.airline()iataCode', faker)).toThrow(
       new FakerError(

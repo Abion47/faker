@@ -3,6 +3,8 @@ import type { Faker } from '../../faker';
 
 const REGEX_DOT_OR_BRACKET = /\.|\(/;
 
+type EntryPoint = { src?: unknown; value: unknown };
+
 /**
  * Resolves the given expression and returns its result. This method should only be used when using serialized expressions.
  *
@@ -76,7 +78,7 @@ export function fakeEval(
     throw new FakerError('Eval entrypoints cannot be empty.');
   }
 
-  let current = entrypoints;
+  let current: EntryPoint[] = entrypoints.map((e) => ({ value: e }));
   let remaining = expression;
   do {
     let index: number;
@@ -90,9 +92,12 @@ export function fakeEval(
 
     // Remove garbage and resolve array values
     current = current
-      .filter((value) => value != null)
-      .map((value): unknown =>
-        Array.isArray(value) ? faker.helpers.arrayElement(value) : value
+      .filter(({ value }) => value != null)
+      .map(
+        ({ src, value }): EntryPoint =>
+          Array.isArray(value)
+            ? { src: value, value: faker.helpers.arrayElement(value) }
+            : { src, value }
       );
   } while (remaining.length > 0 && current.length > 0);
 
@@ -100,8 +105,8 @@ export function fakeEval(
     throw new FakerError(`Cannot resolve expression '${expression}'`);
   }
 
-  const value = current[0];
-  return typeof value === 'function' ? value() : value;
+  const { src, value } = current[0];
+  return typeof value === 'function' ? value.call(src) : value;
 }
 
 /**
@@ -113,9 +118,9 @@ export function fakeEval(
  */
 function evalProcessFunction(
   input: string,
-  entrypoints: ReadonlyArray<unknown>,
+  entrypoints: ReadonlyArray<EntryPoint>,
   expression: string
-): [continueIndex: number, mapped: unknown[]] {
+): [continueIndex: number, mapped: EntryPoint[]] {
   const [index, params] = findParams(input);
   const nextChar = input[index + 1];
   switch (nextChar) {
@@ -134,23 +139,25 @@ function evalProcessFunction(
 
   return [
     index + (nextChar === '.' ? 2 : 1), // one for the closing bracket, one for the dot
-    entrypoints.map((entrypoint): unknown =>
+    entrypoints.map((entrypoint): EntryPoint =>
       // TODO @ST-DDT 2023-12-11: Replace in v10
       // typeof entrypoint === 'function' ? entrypoint(...params) : undefined
       {
-        if (typeof entrypoint === 'function') {
-          return entrypoint(...params);
+        const { src, value } = entrypoint;
+
+        if (typeof value === 'function') {
+          return { src: value, value: value.call(src, ...params) };
         }
 
         // eslint-disable-next-line no-undef
         console.warn(
           `[@faker-js/faker]: Invoking expressions which are not functions is deprecated since v9.0 and will be removed in v10.0.
-Please remove the parentheses or replace the expression with an actual function.
-${expression}
-${' '.repeat(expression.length - input.length)}^`
+        Please remove the parentheses or replace the expression with an actual function.
+        ${expression}
+          ${' '.repeat((value as string).length - input.length)}^`
         );
 
-        return entrypoint;
+        return { src, value };
       }
     ),
   ];
@@ -199,8 +206,8 @@ function findParams(input: string): [continueIndex: number, params: unknown[]] {
  */
 function evalProcessExpression(
   input: string,
-  entrypoints: ReadonlyArray<unknown>
-): [continueIndex: number, mapped: unknown[]] {
+  entrypoints: ReadonlyArray<EntryPoint>
+): [continueIndex: number, mapped: EntryPoint[]] {
   const result = REGEX_DOT_OR_BRACKET.exec(input);
   const dotMatch = (result?.[0] ?? '') === '.';
   const index = result?.index ?? input.length;
@@ -226,24 +233,32 @@ function evalProcessExpression(
  * @param entrypoint The entrypoint to resolve the property on.
  * @param key The property name to resolve.
  */
-function resolveProperty(entrypoint: unknown, key: string): unknown {
-  switch (typeof entrypoint) {
+function resolveProperty(entrypoint: EntryPoint, key: string): EntryPoint {
+  let value = entrypoint.value;
+
+  switch (typeof value) {
     case 'function': {
       try {
-        entrypoint = entrypoint();
+        value = value.call(entrypoint.src);
       } catch {
-        return undefined;
+        return { src: value, value: undefined };
       }
 
-      return entrypoint?.[key as keyof typeof entrypoint];
+      return { src: value, value: value?.[key as keyof typeof value] };
     }
 
     case 'object': {
-      return entrypoint?.[key as keyof typeof entrypoint];
+      return { src: value, value: value?.[key as keyof typeof value] };
     }
 
     default: {
-      return undefined;
+      const prop = (value as Record<string, unknown>)[key];
+
+      if (typeof prop === 'function') {
+        return { src: value, value: prop.bind(value) };
+      }
+
+      return { src: value, value: prop };
     }
   }
 }
