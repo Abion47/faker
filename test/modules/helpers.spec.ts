@@ -1120,6 +1120,11 @@ describe('helpers', () => {
           delete (faker.string as any).special;
         });
 
+        it('should be able to take input variables', () => {
+          const actual = faker.helpers.fake('{{input.name}}: {{string.alpha}}', {name: 'John'});
+          expect(actual).toMatch(/^John: [a-zA-Z]$/);
+        });
+
         it('should support deprecated module aliases', () => {
           expect(faker.definitions.location.state).toContain(
             faker.helpers.fake('{{address.state}}')

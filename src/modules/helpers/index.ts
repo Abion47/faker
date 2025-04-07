@@ -1169,7 +1169,7 @@ export class HelpersModule extends SimpleHelpersModule {
    *
    * @since 7.4.0
    */
-  fake(pattern: string): string;
+  fake(pattern: string, input?: Record<string, unknown>): string;
   /**
    * Generator for combining faker methods based on an array containing static string inputs.
    *
@@ -1215,7 +1215,7 @@ export class HelpersModule extends SimpleHelpersModule {
    *
    * @since 8.0.0
    */
-  fake(patterns: ReadonlyArray<string>): string;
+  fake(patterns: ReadonlyArray<string>, input?: Record<string, unknown>): string;
   /**
    * Generator for combining faker methods based on a static string input or an array of static string inputs.
    *
@@ -1264,8 +1264,8 @@ export class HelpersModule extends SimpleHelpersModule {
    *
    * @since 7.4.0
    */
-  fake(pattern: string | ReadonlyArray<string>): string;
-  fake(pattern: string | ReadonlyArray<string>): string {
+  fake(pattern: string | ReadonlyArray<string>, input?: Record<string, unknown>): string;
+  fake(pattern: string | ReadonlyArray<string>, input: Record<string, unknown> = {}): string {
     pattern =
       typeof pattern === 'string' ? pattern : this.arrayElement(pattern);
 
@@ -1283,7 +1283,7 @@ export class HelpersModule extends SimpleHelpersModule {
     const token = pattern.substring(start + 2, end + 2);
     const method = token.replace('}}', '').replace('{{', '');
 
-    const result = fakeEval(method, this.faker);
+    const result = fakeEval(method, this.faker, [this.faker, this.faker.rawDefinitions, {input}]);
     const stringified = String(result);
 
     // Replace the found tag with the returned fake value
