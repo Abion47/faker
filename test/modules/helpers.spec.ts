@@ -1123,6 +1123,9 @@ describe('helpers', () => {
         it('should be able to take input variables', () => {
           const actual = faker.helpers.fake('{{input.name}}: {{string.alpha}}', {name: 'John'});
           expect(actual).toMatch(/^John: [a-zA-Z]$/);
+
+          const actualWithNull = faker.helpers.fake('{{input.name}}: {{string.alpha}}, Spouse: {{input.spouse}}', {name: 'John', spouse: null});
+          expect(actualWithNull).toMatch(/^John: [a-zA-Z], Spouse: null$/);
         });
 
         it('should support deprecated module aliases', () => {

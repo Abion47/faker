@@ -1292,6 +1292,6 @@ export class HelpersModule extends SimpleHelpersModule {
       pattern.substring(0, start) + stringified + pattern.substring(end + 2);
 
     // return the response recursively until we are done finding all tags
-    return this.fake(patched);
+    return this.fake(patched, input);
   }
 }

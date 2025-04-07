@@ -90,7 +90,7 @@ export function fakeEval(
 
     // Remove garbage and resolve array values
     current = current
-      .filter((value) => value != null)
+      .filter((value) => value !== undefined)
       .map((value): unknown =>
         Array.isArray(value) ? faker.helpers.arrayElement(value) : value
       );
