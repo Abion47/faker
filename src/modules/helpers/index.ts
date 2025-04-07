@@ -1269,29 +1269,37 @@ export class HelpersModule extends SimpleHelpersModule {
     pattern =
       typeof pattern === 'string' ? pattern : this.arrayElement(pattern);
 
+    // extract method name from between the {{ }} that we found
+    // for example: {{person.firstName}}
+
     // find first matching {{ and }}
-    const start = pattern.search(/{{[a-z]/);
-    const end = pattern.indexOf('}}', start);
+    let start = pattern.search(/{{[a-z]/);
+    let end = pattern.indexOf('}}', start);
 
     // if no {{ and }} is found, we are done
     if (start === -1 || end === -1) {
       return pattern;
     }
 
-    // extract method name from between the {{ }} that we found
-    // for example: {{person.firstName}}
-    const token = pattern.substring(start + 2, end + 2);
-    const method = token.replace('}}', '').replace('{{', '');
+    const components = [];
+    while (start !== -1 && end !== -1) {
+      const token = pattern.substring(start + 2, end + 2);
+      const method = token.replace('}}', '').replace('{{', '');
+      const result = fakeEval(method, this.faker);
 
-    const result = fakeEval(method, this.faker);
-    const stringified = String(result);
+      if (start > 0) components.push(pattern.substring(0, start));
+      components.push(result);
 
-    // Replace the found tag with the returned fake value
-    // We cannot use string.replace here because the result might contain evaluated characters
-    const patched =
-      pattern.substring(0, start) + stringified + pattern.substring(end + 2);
+      pattern = pattern.substring(end + 2);
+      start = pattern.search(/{{[a-z]/);
+      end = pattern.indexOf('}}', start);
+    }
 
-    // return the response recursively until we are done finding all tags
-    return this.fake(patched);
+    if (pattern.length > 0) components.push(pattern);
+
+    // Uncomment to allow returning values other than strings
+    // if (components.length === 1) return components[0];
+
+    return components.join('');
   }
 }
